@@ -76,6 +76,7 @@ LOCAL_SRC_FILES :=  	js/js.cpp                             \
 			core/texture_manager.c                            \
 			core/timer.c                                      \
 			core/url_loader.c                                 \
+			core/deps/lodepng/lodepng.c 											\
 			platform/build.cpp		                          \
 			platform/device.cpp                               \
 			platform/dialog.cpp                               \
@@ -117,7 +118,7 @@ LOCAL_LDLIBS :=-llog -lGLESv2 -lz #-fuse-ld=gold REQUIRES: android-ndk-r8b
 LOCAL_CFLAGS += -Wall -Werror -Wno-psabi -Wno-unused-function -Wno-unused-but-set-variable -O3 -funroll-loops -ftree-vectorize -ffast-math
 
 ifeq ($(APP_ABI),armeabi-v7a)
-	LOCAL_CFLAGS += -march=armv7-a -mfloat-abi=softfp 
+	LOCAL_CFLAGS += -march=armv7-a -mfloat-abi=softfp
 endif
 
 LOCAL_STATIC_LIBRARIES += libv8a

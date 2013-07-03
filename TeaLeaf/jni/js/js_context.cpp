@@ -5,12 +5,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- 
+
  * The Game Closure SDK is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- 
+
  * You should have received a copy of the GNU General Public License
  * along with the Game Closure SDK.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -28,6 +28,7 @@ extern "C" {
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 using namespace v8;
 //extern void print_model_view(context_2d*, int);
@@ -649,6 +650,10 @@ static void context_2d_class_finalize(Persistent<Value> ctx, void *param) {
 
 	LOGFN("ctx2d dtor");
 
+	int32_t size =
+    ctx->ToObject()->Get(String::New("byteLength"))->Uint32Value();
+  V8::AdjustAmountOfExternalAllocatedMemory(-size);
+
 	context_2d *_ctx = static_cast<context_2d*>( param );
 	context_2d_delete(_ctx);
 
@@ -673,6 +678,8 @@ Handle<Value> context_2d_class_ctor(const Arguments& args) {
 	ctx.MakeWeak(_ctx, context_2d_class_finalize);
 
 	int size = _ctx->backing_width * _ctx->backing_height * 4;
+
+	ctx->Set(String::New("byteLength"), Int32::New(size), ReadOnly);
 	V8::AdjustAmountOfExternalAllocatedMemory(size);
 
 	LOGFN("endctx2d ctor");
@@ -740,6 +747,71 @@ Handle<Value> defFillTextBitmapDeprecated(const Arguments &args) {
 void js_gl_init() {
 }
 
+static void freeImageData(Persistent<Value> object, void *data) {
+	int32_t length =
+      object->ToObject()->Get(String::New("length"))->Uint32Value();
+  V8::AdjustAmountOfExternalAllocatedMemory(-length);
+  delete[] static_cast<uint8_t*>(data);
+  object.Dispose();
+
+  LOG("{native} Freed Image Data");
+}
+
+Handle<Value> defGetImageData(const Arguments& args) {
+	float srcX = args[0]->NumberValue();
+	float srcY = args[1]->NumberValue();
+	float srcW = args[2]->NumberValue();
+	float srcH = args[3]->NumberValue();
+
+	int length = srcW * srcH * 4;
+	uint8_t *data = new uint8_t[length];
+	context_2d_getImageData(GET_CONTEXT2D(), srcX, srcY, srcW, srcH, data);
+
+	Handle<Object> buffer = Object::New();
+	Persistent<Object> persistent_array = Persistent<Object>::New(buffer);
+	persistent_array.MakeWeak(data, freeImageData);
+  persistent_array.MarkIndependent();
+  V8::AdjustAmountOfExternalAllocatedMemory(length);
+
+	buffer->SetIndexedPropertiesToExternalArrayData(data, kExternalUnsignedByteArray, length);
+	buffer->Set(String::New("length"), Int32::New(length), ReadOnly);
+
+	LOG("{native} Allocated Image Data");
+
+	return buffer;
+}
+
+Handle<Value> defGetImagePng(const Arguments& args) {
+	float srcX = args[0]->NumberValue();
+	float srcY = args[1]->NumberValue();
+	float srcW = args[2]->NumberValue();
+	float srcH = args[3]->NumberValue();
+
+	char *png = NULL;
+  int pngSize = 0;
+
+	context_2d_getImagePng(GET_CONTEXT2D(), srcX, srcY, srcW, srcH, &png, &pngSize);
+
+	LOG("{native} context_2d_getImagePng size: %i", pngSize);
+	LOG("{native} context_2d_getImagePng 1st byte: %u", png[0]);
+
+	Handle<Object> buffer = Object::New();
+	//Persistent<Object> persistent_array = Persistent<Object>::New(buffer);
+	//persistent_array.MakeWeak(png, freeImageData);
+  //persistent_array.MarkIndependent();
+  //V8::AdjustAmountOfExternalAllocatedMemory(pngSize);
+
+	//buffer->SetIndexedPropertiesToExternalArrayData(png, kExternalUnsignedByteArray, pngSize);
+	buffer->Set(String::New("data"), String::New(png), ReadOnly);
+	buffer->Set(String::New("length"), Int32::New(pngSize), ReadOnly);
+
+	LOG("{native} Allocated PNG Image Data");
+
+	free(png);
+
+	return buffer;
+}
+
 Handle<ObjectTemplate> get_context_2d_class_template() {
 	Handle<ObjectTemplate> context_2d_class_template;
 	context_2d_class_template = ObjectTemplate::New();
@@ -767,6 +839,8 @@ Handle<ObjectTemplate> get_context_2d_class_template() {
 	context_2d_class_template->Set(STRING_CACHE_enableScissor, FunctionTemplate::New(defEnableScissor));
 	context_2d_class_template->Set(STRING_CACHE_disableScissor, FunctionTemplate::New(defDisableScissor));
 	context_2d_class_template->Set(STRING_CACHE_drawPointSprites, FunctionTemplate::New(defDrawPointSprites));
+	context_2d_class_template->Set(STRING_CACHE_getImageData, FunctionTemplate::New(defGetImageData));
+	context_2d_class_template->Set(STRING_CACHE_getImagePng, FunctionTemplate::New(defGetImagePng));
 
 	// bitmap fonts
 	context_2d_class_template->Set(STRING_CACHE_measureTextBitmap, FunctionTemplate::New(defMeasureTextBitmap));

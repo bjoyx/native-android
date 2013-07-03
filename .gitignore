@@ -39,3 +39,9 @@ proguard-project.txt
 TeaLeaf/src/com/tealeaf/plugin/plugins
 plugins/config.json
 
+node_modules
+GCTestApp/.AndroidManifest.xml
+TeaLeaf/jni/core
+TeaLeaf/libs/armeabi-v7a/gdb.setup
+TeaLeaf/libs/armeabi-v7a/gdbserver
+TeaLeaf/libs/armeabi-v7a/libtealeaf.so
